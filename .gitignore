@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Wrangler / Cloudflare build assets & caches
+.wrangler/
+.dev.vars
+
+# IDEs
+.vscode/
+.idea/
+
+# System / Temp files
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+.env
