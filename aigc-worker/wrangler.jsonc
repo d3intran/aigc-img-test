@@ -37,6 +37,12 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	// "vars": {  "MY_VARIABLE": "production_value" },
+	"routes": [
+		{
+			"pattern": "aigc.d3in.app/evaluate",
+			"zone_name": "d3in.app"
+		}
+	],
 	"ai": {
 		"binding": "AI"
 	}
