@@ -117,8 +117,11 @@ async function evaluateOnWorker(blob) {
     document.getElementById('infoWorkerImplicit').textContent = "提取中...";
     document.getElementById('infoWorkerExplicit').textContent = "Llava 正在分析图像内容...";
     
-    // API Redirect: If page loaded on port 8080 (Python), route API calls explicitly to port 8787 (Wrangler)
-    const backendUrl = window.location.port === '8787' ? '/evaluate' : 'http://localhost:8787/evaluate';
+    // API Redirect: If page is loaded locally on port 8080 (Python), route to localhost:8787 (Wrangler).
+    // Otherwise (on production custom domain like aigc.d3in.app), use relative '/evaluate' path.
+    const backendUrl = (window.location.hostname === 'localhost' && window.location.port === '8080')
+        ? 'http://localhost:8787/evaluate'
+        : '/evaluate';
     
     try {
         const response = await fetch(backendUrl, {
