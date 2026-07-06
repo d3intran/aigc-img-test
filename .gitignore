@@ -1,17 +1,36 @@
-# Dependencies
+# Node.js dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Wrangler / Cloudflare build assets & caches
+# Cloudflare Wrangler build outputs & local caches
 .wrangler/
 .dev.vars
 
-# IDEs
+# Python compiled files & caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints
+.pytest_cache/
+
+# IDEs & System files
 .vscode/
 .idea/
-
-# System / Temp files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
 Thumbs.db
 Desktop.ini
+
+# Environment variables & local configurations
+.env
+.env.local
+.env.*.local
 *.log
 *.tmp
-.env
