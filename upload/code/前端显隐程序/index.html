@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIGC 标识与水印评测系统</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Load CDN Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">A</div>
+            <div>
+                <h1>AIGC 标识与水印检测评测系统</h1>
+                <div class="subtitle">基于 ChinaDRM 水印评测准则与生成合成标识标准</div>
+            </div>
+        </div>
+        <div class="subtitle" style="font-family: 'JetBrains Mono', monospace; color: var(--accent-orange);">Edge AI Cloud Active</div>
+    </header>
+
+    <div class="container">
+        <!-- Column 1: Controls & Configuration -->
+        <div class="panel left-panel">
+            <!-- Source Card -->
+            <div class="card">
+                <div class="card-title">📂 选择测试图片</div>
+                
+                <div class="tip-box" style="background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.1); border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;">
+                    💡 <strong>使用提示</strong>：<br>
+                    1. 本系统用于评估图片中的安全标识。<br>
+                    2. 若要评测水印的<strong>抗破坏能力（鲁棒性）</strong>，请使用修图工具对样本进行压缩、裁剪或加噪后，<strong>直接上传受损图片</strong>进行检测。
+                </div>
+
+                <div class="upload-zone" id="uploadZone" style="margin-bottom: 1rem;">
+                    <div class="upload-icon">📤</div>
+                    <p>拖拽或 <strong>点击上传待测图片</strong></p>
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                </div>
+                
+                <!-- Simulated Samples -->
+                <div class="sample-list" style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.35rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem;">🔬 系统仿真样本 (测试 LCG 盲水印)</div>
+                    <button class="btn-sample" id="btnSample1">
+                        <span>1. 原始图像 (无任何标识)</span>
+                        <span class="sample-tag tag-clean">Clean</span>
+                    </button>
+                    <button class="btn-sample" id="btnSample2">
+                        <span>2. 显式标识图像 (带可见角标)</span>
+                        <span class="sample-tag tag-explicit">Explicit</span>
+                    </button>
+                    <button class="btn-sample" id="btnSample3">
+                        <span>3. 隐式标识图像 (带 LCG 水印)</span>
+                        <span class="sample-tag tag-implicit">Implicit</span>
+                    </button>
+                </div>
+
+                <!-- Real-World AIGC Samples -->
+                <div class="sample-list">
+                    <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.35rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 0.2rem;">🤖 真实 AIGC 样本 (测试真实平台)</div>
+                    <button class="btn-sample" id="btnQianwen">
+                        <span>1. 千问生成 (AI角标 + 隐式元数据)</span>
+                        <span class="sample-tag tag-explicit">Qianwen</span>
+                    </button>
+                    <button class="btn-sample" id="btnDoubao">
+                        <span>2. 豆包生成 (AI角标 + TC260 XMP)</span>
+                        <span class="sample-tag tag-explicit">Doubao</span>
+                    </button>
+                    <button class="btn-sample" id="btnGemini">
+                        <span>3. Gemini生成 (不清晰 Logo)</span>
+                        <span class="sample-tag tag-implicit" style="background: rgba(148, 163, 184, 0.1); color: var(--text-light);">Gemini</span>
+                    </button>
+                    <button class="btn-sample" id="btnGpt">
+                        <span>4. GPT生成 (无任何显示标识)</span>
+                        <span class="sample-tag tag-clean" style="background: rgba(220, 38, 38, 0.1); color: var(--danger);">GPT</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parameters Card -->
+            <div class="card">
+                <div class="card-title">⚙️ 水印评测参数配置</div>
+                <div class="settings-group">
+                    <div class="setting-item">
+                        <label for="inputKey">算法安全密钥 (Key)</label>
+                        <input type="number" id="inputKey" value="2026">
+                    </div>
+                    <div class="setting-item">
+                        <label for="inputMessage">目标提取匹配水印 (8字符)</label>
+                        <input type="text" id="inputMessage" value="AIGC-OK!" maxlength="8">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Workspace & Evaluation Reports -->
+        <div class="panel right-panel" style="position: relative;">
+            <!-- Workspace Canvas -->
+            <div class="card">
+                <div class="canvas-box">
+                    <span class="canvas-label">待测 AIGC 图像预览 (512x512)</span>
+                    <canvas id="canvasOriginal" width="512" height="512" style="max-height: 380px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Reports Grid -->
+            <div class="results-grid">
+                <!-- Local Check Reports -->
+                <div class="card">
+                    <div class="card-title">🔍 本地终端静态解析</div>
+                    
+                    <div class="card-header" style="font-size:0.85rem; margin-bottom: 0.5rem;">
+                        <span>🏷️ EXIF 元数据状态</span>
+                        <span class="status-badge" id="badgeExif">未检测</span>
+                    </div>
+                    <div class="info-grid" style="margin-bottom: 0.75rem;">
+                        <span class="info-label">元数据属性:</span>
+                        <span class="info-value" id="infoExifDetected">--</span>
+                        <span class="info-label">模型版本 (Model):</span>
+                        <span class="info-value monospaced" id="infoExifModel">--</span>
+                    </div>
+
+                    <div class="card-header" style="font-size:0.85rem; margin-bottom: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                        <span>👁️ 显式 (可见) 角标 OCR</span>
+                        <span class="status-badge" id="badgeExplicit">未检测</span>
+                    </div>
+                    <div class="info-grid" style="margin-bottom: 0.75rem;">
+                        <span class="info-label">识别文字:</span>
+                        <span class="info-value" id="infoExplicitText" style="color: var(--warning); font-weight: 500;">--</span>
+                        <span class="info-label">角标位置:</span>
+                        <span class="info-value monospaced" id="infoExplicitBox">--</span>
+                    </div>
+
+                    <div class="card-header" style="font-size:0.85rem; margin-bottom: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
+                        <span>🔒 隐式 (盲水印) 像素提取</span>
+                        <span class="status-badge" id="badgeImplicit">未检测</span>
+                    </div>
+                    <div class="info-grid">
+                        <span class="info-label">提取的水印:</span>
+                        <span class="info-value monospaced" id="infoImplicitText" style="font-weight:700; color:var(--primary);">--</span>
+                        <span class="info-label">提取比对率:</span>
+                        <div class="progress-container">
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="barImplicitAccuracy"></div>
+                            </div>
+                            <span class="progress-text" id="textImplicitAccuracy">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cloudflare Workers AI Card -->
+                <div class="card" style="border-color: rgba(249, 115, 22, 0.25); background: rgba(249, 115, 22, 0.015);">
+                    <div class="card-title" style="color: var(--accent-orange); border-bottom-color: rgba(249, 115, 22, 0.1);">☁️ Cloudflare Workers AI 云端评测</div>
+                    
+                    <div class="card-header" style="font-size:0.85rem; margin-bottom: 0.5rem;">
+                        <span>🔒 云端安全盲水印</span>
+                        <span class="status-badge status-unknown" id="badgeWorker">正在连接</span>
+                    </div>
+                    <div class="info-grid" style="margin-bottom: 0.75rem;">
+                        <span class="info-label">云端还原串:</span>
+                        <span class="info-value monospaced" id="infoWorkerImplicit" style="font-weight:700; color: var(--primary);">--</span>
+                        <span class="info-label">元数据解析:</span>
+                        <span class="info-value monospaced" id="infoWorkerExif">--</span>
+                    </div>
+
+                    <div class="card-header" style="font-size:0.85rem; margin-bottom: 0.5rem; border-top: 1px dashed rgba(249, 115, 22, 0.2); padding-top: 0.5rem;">
+                        <span>🧠 Workers AI 视觉大模型 (Llava 1.5)</span>
+                    </div>
+                    <div class="info-grid">
+                        <span class="info-label">分析结果:</span>
+                        <span class="info-value" id="infoWorkerExplicit" style="color: var(--accent-orange); font-size: 0.75rem; line-height: 1.4; white-space: pre-wrap;">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading overlay inside panel -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="loading-text" id="loadingText">正在检测中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="watermark.js"></script>
+    <script src="evaluator.js"></script>
+</body>
+</html>
